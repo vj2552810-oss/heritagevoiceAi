@@ -86,8 +86,18 @@ export const authSessions = pgTable("auth_sessions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const mediaFiles = pgTable("media_files", {
+  id: serial("id").primaryKey(),
+  filename: text("filename").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  dataUrl: text("data_url").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type DialectWord = typeof dialectWords.$inferSelect;
 export type FolkStory = typeof folkStories.$inferSelect;
 export type HeritageEntry = typeof heritageArchive.$inferSelect;
 export type AuthSession = typeof authSessions.$inferSelect;
+export type MediaFile = typeof mediaFiles.$inferSelect;

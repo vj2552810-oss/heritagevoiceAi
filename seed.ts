@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { users, dialectWords, folkStories, heritageArchive } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/auth";
-import { count, eq } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 
 let seededPromise: Promise<void> | null = null;
 
@@ -12,6 +12,107 @@ export async function ensureSeeded(): Promise<void> {
     seededPromise = null;
   });
   return seededPromise;
+}
+
+async function ensureTablesCreated() {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      region TEXT NOT NULL DEFAULT 'Konkan & Sahyadri',
+      preferred_language TEXT NOT NULL DEFAULT 'Marathi',
+      role TEXT NOT NULL DEFAULT 'user',
+      bio TEXT DEFAULT 'Community cultural archivist and dialect contributor.',
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS dialect_words (
+      id SERIAL PRIMARY KEY,
+      local_word TEXT NOT NULL,
+      pronunciation TEXT NOT NULL,
+      meaning TEXT NOT NULL,
+      standard_language_meaning TEXT NOT NULL,
+      english_meaning TEXT NOT NULL,
+      example_sentence TEXT NOT NULL,
+      audio_url TEXT DEFAULT '',
+      region TEXT NOT NULL,
+      dialect_name TEXT NOT NULL DEFAULT 'Malvani / Konkani',
+      contributor_id INTEGER,
+      contributor_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      is_sample BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS folk_stories (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      story_type TEXT NOT NULL DEFAULT 'Folk Story',
+      original_text TEXT NOT NULL,
+      standard_translation TEXT NOT NULL,
+      english_translation TEXT NOT NULL,
+      marathi_translation TEXT DEFAULT '',
+      kannada_translation TEXT DEFAULT '',
+      hindi_translation TEXT DEFAULT '',
+      ai_summary TEXT NOT NULL,
+      category TEXT NOT NULL,
+      region TEXT NOT NULL,
+      keywords TEXT NOT NULL,
+      audio_url TEXT DEFAULT '',
+      contributor_id INTEGER,
+      contributor_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      is_sample BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS heritage_archive (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      description TEXT NOT NULL,
+      historical_info TEXT NOT NULL,
+      region TEXT NOT NULL,
+      latitude DOUBLE PRECISION NOT NULL DEFAULT 16.65,
+      longitude DOUBLE PRECISION NOT NULL DEFAULT 74.25,
+      image_url TEXT NOT NULL,
+      audio_url TEXT DEFAULT '',
+      contributor_id INTEGER,
+      contributor_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      is_sample BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+      id SERIAL PRIMARY KEY,
+      token TEXT NOT NULL UNIQUE,
+      user_id INTEGER NOT NULL,
+      user_agent TEXT DEFAULT '',
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS media_files (
+      id SERIAL PRIMARY KEY,
+      filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      data_url TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
 }
 
 export async function ensureDemoAccountsValid(): Promise<void> {
@@ -93,6 +194,7 @@ export async function verifyOrRepairDemoPassword(
 }
 
 async function runSeed() {
+  await ensureTablesCreated();
   const [{ value: userCount }] = await db.select({ value: count() }).from(users);
   if (userCount > 0) return;
 
